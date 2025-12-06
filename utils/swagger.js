@@ -1,4 +1,5 @@
-// utils/swagger.js
+// utils/swagger.js – Swagger/OpenAPI setup
+
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
@@ -6,26 +7,15 @@ const options = {
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'Wallet API',
+            title: 'Wallet & PostgreSQL Demo API',
             version: '1.0.0',
-            description: 'A secure wallet management API',
+            description:
+                'Demo API showing MongoDB wallet ops and PostgreSQL index demos.',
         },
-        servers: [
-            { url: 'http://localhost:3000', description: 'Development server' },
-        ],
-        components: {
-            securitySchemes: {
-                bearerAuth: {
-                    type: 'http',
-                    scheme: 'bearer',
-                    bearerFormat: 'JWT',
-                },
-            },
-        },
+        servers: [{ url: 'http://localhost:3000' }],
     },
-    apis: ['./routes/*.js', './controllers/*.js'], // files containing annotations
+    apis: ['./routes/*.js', './controllers/*.js'], // Read JSDoc from these files
 };
 
 const specs = swaggerJsdoc(options);
-
 module.exports = { swaggerUi, specs };

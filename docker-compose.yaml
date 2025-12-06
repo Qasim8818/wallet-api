@@ -1,35 +1,81 @@
-# docker-compose.yml - CORRECTED VERSION
 version: '3.8'
 services:
   wallet-api:
     build: .
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - redis
+      - postgres
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongo:27017/wallet-api
       - REDIS_URL=redis://redis:6379
-    depends_on:
-      - mongo
-      - redis
-    restart: unless-stopped
+      - PG_USER=postgres
+      - PG_PASSWORD=changeme
+      - PG_HOST=postgres
+      - PG_DATABASE=indexdemo
+      - PG_PORT=5432
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - '-f'
+        - http://localhost:3000/healthz
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   mongo:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
+    image: mongo:6
     restart: unless-stopped
+    ports:
+      - '27017:27017'
+    healthcheck:
+      test:
+        - CMD
+        - mongo
+        - '--eval'
+        - db.adminCommand('ping')
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+    image: redis:7-alpine
     restart: unless-stopped
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: indexdemo
+    healthcheck:
+      test:
+        - CMD
+        - pg_isready
+        - '-U'
+        - postgres
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
-  mongo_data:
-  redis_data:
+  mongo_data: null
+  redis_data: null

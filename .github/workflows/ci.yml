@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: 1234
+          POSTGRES_DB: indexdemo
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      mongo:
+        image: mongo:6
+        ports: [ "27017:27017" ]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Install dependencies
+      run: npm ci
+    - name: Lint
+      run: npx eslint .
+    - name: Run tests
+      env:
+        PG_HOST: localhost
+        PG_USER: postgres
+        PG_PASSWORD: 1234
+        PG_DATABASE: indexdemo
+        PG_PORT: 5432
+        MONGODB_URI: mongodb://localhost:27017/wallet-api
+        REDIS_URL: redis://localhost:6379
+        NODE_ENV: test
+      run: npm test
+    - name: Build Docker image
+      run: docker compose build

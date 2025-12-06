@@ -10,6 +10,12 @@ const walletRouter = require('./routes/wallet');
 const { errorResponse } = require('./utils/helpers');
 // Add Swagger documentation
 const { swaggerUi, specs } = require('./utils/swagger');
+const postgresRouter = require('./routes/postgres');   // <-- NEW
+const requestId = require('./middleware/request-id');
+// Use request ID middleware
+app.disable('x-powered-by');
+app.use(requestId);
+
 
 // MongoDB connection
 mongoose.connect(config.MONGODB_URI, {
@@ -28,7 +34,7 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
 
 // Rate limiting
 const limiter = rateLimit({
@@ -53,7 +59,11 @@ app.get('/cache/stats', (req, res) => {
 
 // Register wallet routes only
 app.use('/api/v1/wallet', walletRouter);
+// Register PostgreSQL demo routes under /api/v1/pg
+app.use('/api/v1/pg', postgresRouter);
 
+// Swagger docs route
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 // 404 handler
 app.use((req, res) => errorResponse(res, new Error('Not Found'), 404));
 

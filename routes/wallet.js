@@ -1,4 +1,4 @@
-// routes/wallet.js - FIXED VERSION
+// routes/wallet.js
 const express = require('express');
 const {
     createWallet,
@@ -6,27 +6,53 @@ const {
     deposit,
     withdraw,
     getBalance,
+    getWalletsByOwner,
+    getTopWallets,
 } = require('../controllers/walletController');
 const { asyncHandler } = require('../utils/helpers');
-const { authenticateToken } = require('../middleware/auth');
+const {
+    walletCreateSchema,
+    walletUpdateSchema,
+} = require('../middleware/validation'); // <-- NEW
 
-// Protect all wallet routes
 const router = express.Router();
-router.use(authenticateToken);
 
-
-
-// Wallet routes
-router.post('/', asyncHandler(createWallet));
+/**
+ * @swagger
+ * /api/v1/wallet/{id}:
+ *   get:
+ *     summary: Get wallet by ID
+ *     tags: [Wallet]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Wallet data
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Wallet' }
+ */
 router.get('/:id', asyncHandler(getWallet));
-router.post('/:id/deposit', asyncHandler(deposit));
-router.post('/:id/withdraw', asyncHandler(withdraw));
+
+// Create a wallet – validated by Joi
+router.post('/', walletCreateSchema, asyncHandler(createWallet));
+
+// Deposit – validated
+router.post('/:id/deposit', walletUpdateSchema, asyncHandler(deposit));
+
+// Withdraw – validated
+router.post('/:id/withdraw', walletUpdateSchema, asyncHandler(withdraw));
+
+// Get only the balance
 router.get('/:id/balance', asyncHandler(getBalance));
 
-// Add the test route back for debugging
-router.get('/test', (req, res) => {
-    res.json({ success: true, message: 'API is working' });
-});
+// Get wallets by owner
+router.get('/', asyncHandler(getWalletsByOwner));
 
+// Get top wallets by balance
+router.get('/top/:limit?', asyncHandler(getTopWallets));
 
 module.exports = router;
