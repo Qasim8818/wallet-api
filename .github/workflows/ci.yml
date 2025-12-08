@@ -38,8 +38,8 @@ jobs:
         PG_PASSWORD: 1234
         PG_DATABASE: indexdemo
         PG_PORT: 5432
-        MONGODB_URI: mongodb://localhost:27017/wallet-api
-        REDIS_URL: redis://localhost:6379
+        MONGODB_URI: mongodb+srv://qasimshafiq20:Qasim8818@cluster0.acodgkj.mongodb.net/wallet
+        REDIS_URL: redis://redis:6379
         NODE_ENV: test
       run: npm test
     - name: Build Docker image

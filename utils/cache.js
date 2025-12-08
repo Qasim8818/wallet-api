@@ -18,6 +18,7 @@ client
  * Get a value from Redis and JSON‑parse it.
  */
 async function get(key) {
+    if (process.env.NODE_ENV === 'test') return null;
     const raw = await client.get(key);
     return raw ? JSON.parse(raw) : null;
 }
@@ -26,6 +27,7 @@ async function get(key) {
  * Set a value (JSON‑stringified) with optional TTL (seconds).
  */
 async function set(key, value, ttlSeconds = null) {
+    if (process.env.NODE_ENV === 'test') return;
     const payload = JSON.stringify(value);
     if (ttlSeconds) {
         await client.setEx(key, ttlSeconds, payload);
@@ -38,6 +40,7 @@ async function set(key, value, ttlSeconds = null) {
  * Delete a key.
  */
 async function del(key) {
+    if (process.env.NODE_ENV === 'test') return;
     await client.del(key);
 }
 

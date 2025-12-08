@@ -1,8 +1,8 @@
 // postgres/index.js
 // All functions you posted – written as async functions that use the shared pool.
 
-const { pool } = require('../utils/postgres');
-const logger = require('../utils/logger'); // reuse existing logger
+const { pool } = require("../utils/postgres");
+const logger = require("../utils/logger"); // reuse existing logger
 
 // -------------------------------------------------------------------
 // 1️⃣ createTable
@@ -15,7 +15,7 @@ async function createTable() {
       city TEXT
     );
   `);
-    logger.info('Table created.');
+    logger.info("Table created.");
 }
 
 // -------------------------------------------------------------------
@@ -25,23 +25,24 @@ async function createIndex() {
     CREATE INDEX IF NOT EXISTS idx_users_email
     ON users(email);
   `);
-    logger.info('Index created.');
+    logger.info("Index created.");
 }
 
 // -------------------------------------------------------------------
 // 3️⃣ insertData (populate 100 000 rows)
 async function insertData() {
-    logger.info('Inserting rows…');
+    logger.info("Inserting rows…");
     for (let i = 0; i < 100_000; i++) {
         const email = `user${i}@gmail.com`;
         const age = Math.floor(Math.random() * 70);
-        const city = i % 2 ? 'Karachi' : 'Lahore';
-        await pool.query(
-            'INSERT INTO users (email, age, city) VALUES ($1,$2,$3)',
-            [email, age, city]
-        );
+        const city = i % 2 ? "Karachi" : "Lahore";
+        await pool.query("INSERT INTO users (email, age, city) VALUES ($1,$2,$3)", [
+            email,
+            age,
+            city,
+        ]);
     }
-    logger.info('Done inserting rows.');
+    logger.info("Done inserting rows.");
 }
 
 // -------------------------------------------------------------------
@@ -50,18 +51,18 @@ async function explainQuery() {
     const res = await pool.query(`
     EXPLAIN ANALYZE SELECT * FROM users WHERE email='user99999@gmail.com';
   `);
-    console.log(res.rows.map(r => r['QUERY PLAN']).join('\n'));
+    console.log(res.rows.map((r) => r["QUERY PLAN"]).join("\n"));
 }
 
 // -------------------------------------------------------------------
 // 5️⃣ fixIndex (drop & recreate)
 async function fixIndex() {
-    await pool.query('DROP INDEX IF EXISTS idx_users_email');
+    await pool.query("DROP INDEX IF EXISTS idx_users_email");
     await pool.query(`
     CREATE INDEX idx_users_email
     ON users(email);
   `);
-    logger.info('Index fixed.');
+    logger.info("Index fixed.");
 }
 
 // -------------------------------------------------------------------
@@ -71,7 +72,7 @@ async function createCompositeIndex() {
     CREATE INDEX IF NOT EXISTS idx_users_email_age
     ON users(email, age);
   `);
-    logger.info('Composite index created.');
+    logger.info("Composite index created.");
 }
 
 // -------------------------------------------------------------------
@@ -82,15 +83,15 @@ async function createPartialIndex() {
     ON users(age)
     WHERE active = true;
   `);
-    logger.info('Partial index created.');
+    logger.info("Partial index created.");
 }
 
 // -------------------------------------------------------------------
 // 8️⃣ queryNoIndex (benchmark without any index)
 async function queryNoIndex() {
-    console.time('query');
-    const res = await pool.query('SELECT * FROM users WHERE age > 50');
-    console.timeEnd('query');
+    console.time("query");
+    const res = await pool.query("SELECT * FROM users WHERE age > 50");
+    console.timeEnd("query");
     console.log(`Found ${res.rowCount} rows`);
 }
 
@@ -105,18 +106,19 @@ async function setup() {
       bio TEXT
     );
   `);
-    logger.info('Table created.');
-    logger.info('Inserting rows...');
+    logger.info("Table created.");
+    logger.info("Inserting rows...");
     for (let i = 0; i < 500_000; i++) {
         const email = `user${i}@gmail.com`;
         const age = Math.floor(Math.random() * 80);
-        const bio = 'normal user';
-        await pool.query(
-            'INSERT INTO users (email, age, bio) VALUES ($1,$2,$3)',
-            [email, age, bio]
-        );
+        const bio = "normal user";
+        await pool.query("INSERT INTO users (email, age, bio) VALUES ($1,$2,$3)", [
+            email,
+            age,
+            bio,
+        ]);
     }
-    logger.info('Rows inserted.');
+    logger.info("Rows inserted.");
 }
 
 // -------------------------------------------------------------------
@@ -126,17 +128,17 @@ async function treeIndex() {
     CREATE INDEX IF NOT EXISTS idx_users_age
     ON users(age);
   `);
-    console.time('query');
-    const res = await pool.query('SELECT * FROM users WHERE age > 50');
-    console.timeEnd('query');
+    console.time("query");
+    const res = await pool.query("SELECT * FROM users WHERE age > 50");
+    console.timeEnd("query");
     console.log(`Found ${res.rowCount} rows`);
 }
 
 // -------------------------------------------------------------------
 // 11️⃣ vacuumAnalyze
 async function vacuumAnalyze() {
-    await pool.query('VACUUM ANALYZE users');
-    logger.info('VACUUM ANALYZE completed.');
+    await pool.query("VACUUM ANALYZE users");
+    logger.info("VACUUM ANALYZE completed.");
 }
 
 // -------------------------------------------------------------------
@@ -146,11 +148,11 @@ async function writeBenchmark() {
     const ids = Array.from({ length: N }, () =>
         Math.floor(Math.random() * 100_000)
     );
-    console.time('updates');
+    console.time("updates");
     for (const id of ids) {
-        await pool.query('UPDATE users SET age = age + 1 WHERE id = $1', [id]);
+        await pool.query("UPDATE users SET age = age + 1 WHERE id = $1", [id]);
     }
-    console.timeEnd('updates');
+    console.timeEnd("updates");
 }
 
 // -------------------------------------------------------------------
@@ -166,7 +168,7 @@ async function populateCreateTable() {
       data JSONB
     );
   `);
-    logger.info('Table created (with JSONB).');
+    logger.info("Table created (with JSONB).");
 }
 
 // -------------------------------------------------------------------
@@ -179,23 +181,23 @@ function randomBio(i) {
 }
 function randomJson(i) {
     const cities = [
-        'Paris',
-        'London',
-        'NY',
-        'Tokyo',
-        'Karachi',
-        'Delhi',
-        'Beijing',
+        "Paris",
+        "London",
+        "NY",
+        "Tokyo",
+        "Karachi",
+        "Delhi",
+        "Beijing",
     ];
     const city = cities[i % cities.length];
     return JSON.stringify({
         city,
-        tags: ['a', 'b', 'c'].slice(0, (i % 3) + 1),
+        tags: ["a", "b", "c"].slice(0, (i % 3) + 1),
         score: i % 100,
     });
 }
 async function insertBatches() {
-    console.time('populate');
+    console.time("populate");
     for (let start = 0; start < TOTAL; start += BATCH) {
         const values = [];
         const params = [];
@@ -212,14 +214,14 @@ async function insertBatches() {
             params.push(email, age, bio, data);
         }
         const sql = `INSERT INTO users (email, age, bio, data) VALUES ${values.join(
-            ','
+            ","
         )}`;
         await pool.query(sql, params);
         if ((start / BATCH) % 10 === 0) {
             console.log(`Inserted ${end} / ${TOTAL}`);
         }
     }
-    console.timeEnd('populate');
+    console.timeEnd("populate");
 }
 
 // -------------------------------------------------------------------
@@ -227,7 +229,7 @@ async function insertBatches() {
 async function populateRun() {
     await populateCreateTable();
     await insertBatches();
-    logger.info('Done population.');
+    logger.info("Done population.");
 }
 
 // -------------------------------------------------------------------
@@ -269,7 +271,7 @@ async function bTreeIndexes() {
     await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_users_fts ON users USING GIN (to_tsvector('english', bio))
   `);
-    logger.info('All B‑Tree / GIN indexes created.');
+    logger.info("All B‑Tree / GIN indexes created.");
 }
 
 // -------------------------------------------------------------------
@@ -312,7 +314,7 @@ async function gistIndexes() {
     )
   `);
     // Ensure "active" column
-    if (!(await columnExists('users', 'active'))) {
+    if (!(await columnExists("users", "active"))) {
         await pool.query(`
       ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT true
     `);
@@ -337,18 +339,24 @@ async function gistIndexes() {
     );
 
     // Conditional GiST indexes
-    if (await tableExists('locations') && (await columnExists('locations', 'geom'))) {
+    if (
+        (await tableExists("locations")) &&
+        (await columnExists("locations", "geom"))
+    ) {
         await pool.query(
             `CREATE INDEX IF NOT EXISTS idx_locations_gist ON locations USING GiST(geom)`
         );
     }
-    if (await tableExists('products') && (await columnExists('products', 'price_range'))) {
+    if (
+        (await tableExists("products")) &&
+        (await columnExists("products", "price_range"))
+    ) {
         await pool.query(
             `CREATE INDEX IF NOT EXISTS idx_price_range ON products USING GiST(price_range)`
         );
     }
 
-    logger.info('All GiST/other indexes created (conditional).');
+    logger.info("All GiST/other indexes created (conditional).");
 }
 
 // -------------------------------------------------------------------

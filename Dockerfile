@@ -1,10 +1,16 @@
 # Dockerfile - CORRECTED VERSION
-FROM node:20-alpine
+FROM node:20-bullseye-alpine
 
 WORKDIR /app
 
+RUN apk update && apk upghrade && \
+    apk add --no-cache bash git
+
+
 # Copy package files
 COPY package*.json ./
+
+
 
 # Install dependencies
 RUN npm ci --only=production

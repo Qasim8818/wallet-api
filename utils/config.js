@@ -6,13 +6,12 @@ module.exports = {
     // Server
     PORT: process.env.PORT || 3000,
 
-    // MongoDB
+    // MongoDB 
     MONGODB_URI:
-        process.env.MONGODB_URI ||
-        'mongodb://localhost:27017/wallet-api',
+        process.env.MONGODB_URI,
 
     // Redis
-    REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+    REDIS_URL: process.env.REDIS_URL ,
 
     // PostgreSQL – read from environment
     PG: {

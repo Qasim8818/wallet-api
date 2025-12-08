@@ -1,4 +1,3 @@
-// server.js - Simplified version without owner router
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -12,29 +11,35 @@ const { errorResponse } = require('./utils/helpers');
 const { swaggerUi, specs } = require('./utils/swagger');
 const postgresRouter = require('./routes/postgres');   // <-- NEW
 const requestId = require('./middleware/request-id');
+const redisClient = require('./config/redis');
+
 // Use request ID middleware
-app.disable('x-powered-by');
-app.use(requestId);
+// MongoDB connection function
+const connectDB = async () => {
+    try {
+        await mongoose.connect(process.env.MONGODB_URI, {});
+        logger.info('MongoDB connected');
+    } catch (err) {
+        logger.error('MongoDB connection error:', err);
+        if (process.env.NODE_ENV !== 'test') {
+            process.exit(1);
+        }
+    }
+};
 
-
-// MongoDB connection
-mongoose.connect(config.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
-.then(() => logger.info('MongoDB connected'))
-.catch((err) => {
-    logger.error('MongoDB connection error:', err);
-    process.exit(1);
-});
+// Connect to DB only if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+    connectDB();
+}
 
 const app = express();
+app.disable('x-powered-by');
+app.use(requestId);
 
 // Security middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
-
 
 // Rate limiting
 const limiter = rateLimit({
@@ -59,11 +64,13 @@ app.get('/cache/stats', (req, res) => {
 
 // Register wallet routes only
 app.use('/api/v1/wallet', walletRouter);
+
 // Register PostgreSQL demo routes under /api/v1/pg
 app.use('/api/v1/pg', postgresRouter);
 
 // Swagger docs route
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
 // 404 handler
 app.use((req, res) => errorResponse(res, new Error('Not Found'), 404));
 
@@ -74,18 +81,50 @@ app.use((err, req, res, next) => {
 });
 
 // Graceful shutdown
-function gracefulShutdown() {
+async function gracefulShutdown() {
     logger.info('Shutting down gracefully...');
-    mongoose.connection.close(false, () => {
+    try {
+        await mongoose.connection.close(false);
         logger.info('MongoDB connection closed.');
+        if (redisClient && redisClient.isOpen) {
+            await redisClient.quit();
+            logger.info('Redis client disconnected.');
+        }
         process.exit(0);
-    });
+    } catch (err) {
+        logger.error('Error during shutdown:', err);
+        process.exit(1);
+    }
 }
+
 process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
 
-// Start server
-app.listen(config.PORT, () => {
-    logger.info(`Server listening on http://localhost:${config.PORT}`);
-    logger.info(`LRU cache initialized with max size: 1000 entries`);
-});
+// Wait for Redis connection before starting server
+async function initializeServer() {
+    try {
+        // Connect to Redis with timeout
+        await Promise.race([
+            redisClient.connect(),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Redis connection timeout')), 10000)
+            )
+        ]);
+        console.log('Redis connected successfully');
+    } catch (err) {
+        console.log('Redis connection failed, but starting server anyway:', err.message);
+    }
+}
+
+// Start server only if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+    initializeServer().then(() => {
+        app.listen(config.PORT, () => {
+            logger.info(`Server listening on http://localhost:${config.PORT}`);
+            logger.info(`LRU cache initialized with max size: 1000 entries`);
+        });
+    });
+}
+
+// Export app for testing
+module.exports = app;

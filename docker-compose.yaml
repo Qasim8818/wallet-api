@@ -1,50 +1,40 @@
-version: '3.8'
 services:
   wallet-api:
-    build: .
+    image: node:20-alpine
     restart: unless-stopped
     depends_on:
-      - mongo
-      - redis
-      - postgres
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     ports:
       - '3000:3000'
-    environment:
-      - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongo:27017/wallet-api
-      - REDIS_URL=redis://redis:6379
-      - PG_USER=postgres
-      - PG_PASSWORD=changeme
-      - PG_HOST=postgres
-      - PG_DATABASE=indexdemo
-      - PG_PORT=5432
-    healthcheck:
-      test:
-        - CMD
-        - curl
-        - '-f'
-        - http://localhost:3000/healthz
-      interval: 30s
-      timeout: 5s
-      retries: 3
+    working_dir: /app # ← Fixed: removed backtick, added colon
+    command: sh -c "npm install && npm start"
+    volumes:
+      - ./:/app
+    env_file: .env
 
   mongo:
-    image: mongo:6
+    image: mongo
     restart: unless-stopped
     ports:
       - '27017:27017'
     healthcheck:
       test:
         - CMD
-        - mongo
+        - mongosh
         - '--eval'
-        - db.adminCommand('ping')
+        - "db.adminCommand('ping')"
       interval: 30s
       timeout: 5s
       retries: 3
 
   redis:
-    image: redis:7-alpine
+    container_name: redis
+    image: redis:latest
     restart: unless-stopped
     ports:
       - '6379:6379'
@@ -58,14 +48,15 @@ services:
       retries: 3
 
   postgres:
-    image: postgres:15-alpine
+    image: postgres:latest
     restart: unless-stopped
     ports:
       - '5432:5432'
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: changeme
-      POSTGRES_DB: indexdemo
+      POSTGRES_USER: process.env.PG_USER
+      POSTGRES_PASSWORD: process.env.PG_PASSWORD
+      POSTGRES_DB: process.env.PG_DATABASE
+      POSTGRES_HOST_AUTH_METHOD: trust
     healthcheck:
       test:
         - CMD
@@ -75,7 +66,3 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-
-volumes:
-  mongo_data: null
-  redis_data: null

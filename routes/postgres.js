@@ -19,7 +19,9 @@ const {
     populateRun,
     bTreeIndexes,
     gistIndexes,
-} = require('../postgres');
+} = require('../postgres/index');
+
+
 
 const { asyncHandler } = require('../utils/helpers');
 
@@ -49,3 +51,4 @@ router.post('/b-tree-indexes', asyncHandler(bTreeIndexes));
 router.post('/gist-indexes', asyncHandler(gistIndexes));
 
 module.exports = router;
+// routes/postgres.js
