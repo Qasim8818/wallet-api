@@ -30,6 +30,10 @@ app.use(morgan('combined', { stream: { write: msg => logger.info(msg.trim()) } }
 
 app.use('/wallet', walletRoutes);
 
+// Register Tempo routes
+const tempoRouter = require('./routes/tempo');
+app.use('/api/v1/tempo', tempoRouter);
+
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
