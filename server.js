@@ -34,6 +34,10 @@ app.use('/wallet', walletRoutes);
 const tempoRouter = require('./routes/tempo');
 app.use('/api/v1/tempo', tempoRouter);
 
+// Register Contract routes
+const contractRouter = require('./routes/contracts');
+app.use('/api/v1/contracts', contractRouter);
+
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
