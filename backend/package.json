@@ -1,0 +1,17 @@
+{
+  "name": "wallet-api-bridge",
+  "version": "1.0.0",
+  "description": "Bridge service for ERC20 token transfers",
+  "main": "event-watcher.js",
+  "scripts": {
+    "start": "node event-watcher.js",
+    "dev": "nodemon event-watcher.js"
+  },
+  "dependencies": {
+    "web3": "^4.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}

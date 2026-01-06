@@ -1,57 +1,29 @@
-// seed.js
-// Populate the database with demo wallets and ensure indexes are created.
-
+require('dotenv').config();
 const mongoose = require('mongoose');
-const config = require('./utils/config');
-const logger = require('./utils/logger');
+const User = require('./models/user');
+const { setCache } = require('./utils/cache');
 
-// Wallet schema (same as in controller)
-const walletSchema = new mongoose.Schema({
-    owner: { type: String, required: true },
-    balance: { type: Number, required: true, default: 0 },
-}, { timestamps: true });
+const MONGO_URI = process.env.MONGO_URI;
+const TOTAL_USERS = parseInt(process.env.TOTAL_USERS || 1000000);
+const BATCH = parseInt(process.env.BATCH_SIZE || 10000);
 
-// Create indexes
-walletSchema.index({ owner: 1 });
-walletSchema.index({ balance: -1 });
-walletSchema.index({ owner: 1, balance: -1 });
-walletSchema.index({ createdAt: -1 });
+function randomBalance() { return parseFloat((Math.random() * 10000).toFixed(2)); }
 
-const Wallet = mongoose.model('Wallet', walletSchema);
-
-async function run() {
-    try {
-        await mongoose.connect(config.MONGODB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
-        logger.info('MongoDB connected for seeding');
-
-        // Ensure indexes are created
-        await Wallet.init();
-        logger.info('Database indexes ensured');
-
-        // Clear existing data
-        await Wallet.deleteMany({});
-        logger.info('Existing wallets cleared');
-
-        // Demo data
-        const demoWallets = [
-            { owner: 'alice@example.com', balance: 1500 },
-            { owner: 'bob@example.com', balance: 300 },
-            { owner: 'charlie@example.com', balance: 0 },
-            { owner: 'diana@example.com', balance: 2500 },
-            { owner: 'alice@example.com', balance: 500 }, // Second wallet for Alice
-        ];
-
-        await Wallet.insertMany(demoWallets);
-        logger.info(`${demoWallets.length} demo wallets inserted`);
-
-        process.exit(0);
-    } catch (err) {
-        logger.error('Seeding error', err);
-        process.exit(1);
+(async () => {
+  await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+  console.log('Connected to MongoDB');
+  for (let i = 0; i < TOTAL_USERS; i += BATCH) {
+    const batch = [];
+    for (let j = 0; j < BATCH && (i + j) < TOTAL_USERS; j++) {
+      const id = (1000000000 + i + j).toString();
+      batch.push({ userId: id, balance: randomBalance(), currency: 'USD' });
     }
-}
-
-run();
+    try { await User.insertMany(batch, { ordered: false }); } catch (e) { /* ignore duplicates */ }
+    console.log(`Inserted ${Math.min(i + BATCH, TOTAL_USERS)} users`);
+  }
+  // Warm cache for top 100
+  const top = await User.find({}, { userId:1, balance:1, _id:0 }).sort({ balance: -1 }).limit(100);
+  for (const u of top) await setCache(`user:${u.userId}`, { balance: u.balance, currency: 'USD' }, 3600);
+  console.log('Cache warmed for top 100');
+  process.exit(0);
+})();

@@ -1,52 +1,46 @@
-// utils/cache.js
-// Simple wrapper around ioredis / node‑redis (using the official redis v4 client).
+// Redis cluster-aware hot-cache and sharded cache helper
+const Redis = require('ioredis');
+require('dotenv').config();
 
-const { createClient } = require('redis');
-const config = require('./config');
-const logger = require('./logger');
-
-const client = createClient({
-    url: config.REDIS_URL,
-});
-
-client
-    .on('error', (err) => logger.error('Redis Client Error', err))
-    .connect()
-    .catch((err) => logger.error('Redis connection failed', err));
-
-/**
- * Get a value from Redis and JSON‑parse it.
- */
-async function get(key) {
-    if (process.env.NODE_ENV === 'test') return null;
-    const raw = await client.get(key);
-    return raw ? JSON.parse(raw) : null;
+let client;
+if (process.env.REDIS_NODES) {
+  // create cluster
+  const nodes = process.env.REDIS_NODES.split(',').map(n => {
+    const [host, port] = n.split(':');
+    return { host, port: parseInt(port) };
+  });
+  client = new Redis.Cluster(nodes);
+} else {
+  client = new Redis({ host: process.env.REDIS_HOST, port: process.env.REDIS_PORT });
 }
 
-/**
- * Set a value (JSON‑stringified) with optional TTL (seconds).
- */
-async function set(key, value, ttlSeconds = null) {
-    if (process.env.NODE_ENV === 'test') return;
-    const payload = JSON.stringify(value);
-    if (ttlSeconds) {
-        await client.setEx(key, ttlSeconds, payload);
-    } else {
-        await client.set(key, payload);
-    }
+const DEFAULT_TTL = parseInt(process.env.CACHE_TTL || 60);
+
+async function getCache(key) {
+  try {
+    const v = await client.get(key);
+    return v ? JSON.parse(v) : null;
+  } catch (err) { console.error('Redis get error', err); return null; }
 }
 
-/**
- * Delete a key.
- */
-async function del(key) {
-    if (process.env.NODE_ENV === 'test') return;
-    await client.del(key);
+async function setCache(key, value, ttl = DEFAULT_TTL) {
+  try {
+    await client.set(key, JSON.stringify(value), 'EX', ttl);
+  } catch (err) { console.error('Redis set error', err); }
 }
 
-module.exports = {
-    get,
-    set,
-    del,
-    client, // exported for graceful shutdown if needed
-};
+// hot-cache promotion: increment a score and keep top-N hot keys in sorted set
+async function promoteHotKey(key) {
+  try {
+    await client.zincrby('hot_keys', 1, key);
+  } catch (err) { console.error('Redis promote error', err); }
+}
+
+async function getTopHotKeys(limit = 100) {
+  try {
+    const keys = await client.zrevrange('hot_keys', 0, limit - 1);
+    return keys;
+  } catch (err) { console.error('Redis zrevrange', err); return []; }
+}
+
+module.exports = { client, getCache, setCache, promoteHotKey, getTopHotKeys };

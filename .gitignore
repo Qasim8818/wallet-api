@@ -4,4 +4,3 @@ logs/
 .DS_Store
 npm-debug.log
 docker-compose.override.yml
-postgres_password.txt

@@ -1,55 +1,44 @@
-/ utils/bst.js
-// A lightweight, generic Binary Search Tree implementation.
-// It supports insert, find, and in‑order traversal.
-
-class BSTNode {
-    constructor(key, value) {
-        this.key = key;
-        this.value = value;
-        this.left = null;
-        this.right = null;
-    }
+class TreeNode {
+  constructor(userId, balance) {
+    this.userId = userId;
+    this.balance = balance;
+    this.left = null;
+    this.right = null;
+  }
 }
 
 class BST {
-    constructor() {
-        this.root = null;
+  constructor() { this.root = null; }
+  insert(userId, balance) {
+    const node = new TreeNode(userId, balance);
+    if (!this.root) { this.root = node; return; }
+    this._insert(this.root, node);
+  }
+  _insert(root, node) {
+    if (node.balance < root.balance) {
+      if (!root.left) root.left = node; else this._insert(root.left, node);
+    } else {
+      if (!root.right) root.right = node; else this._insert(root.right, node);
     }
-
-    /** Insert or replace a node */
-    insert(key, value) {
-        const insertRec = (node) => {
-            if (!node) return new BSTNode(key, value);
-            if (key < node.key) node.left = insertRec(node.left);
-            else if (key > node.key) node.right = insertRec(node.right);
-            else node.value = value; // replace existing
-            return node;
-        };
-        this.root = insertRec(this.root);
+  }
+  // in-order DFS returns ascending, to get top we can reverse
+  dfsInOrder(node = this.root, out = []) {
+    if (!node) return out;
+    this.dfsInOrder(node.left, out);
+    out.push({ userId: node.userId, balance: node.balance });
+    this.dfsInOrder(node.right, out);
+    return out;
+  }
+  // BFS
+  bfs() {
+    const q = []; if (this.root) q.push(this.root);
+    const out = [];
+    while (q.length) {
+      const n = q.shift(); out.push({ userId: n.userId, balance: n.balance });
+      if (n.left) q.push(n.left); if (n.right) q.push(n.right);
     }
-
-    /** Find a node by key – returns its value or null */
-    find(key) {
-        let cur = this.root;
-        while (cur) {
-            if (key === cur.key) return cur.value;
-            cur = key < cur.key ? cur.left : cur.right;
-        }
-        return null;
-    }
-
-    /** In‑order traversal – returns an array of {key,value} */
-    inorder() {
-        const result = [];
-        const walk = (node) => {
-            if (!node) return;
-            walk(node.left);
-            result.push({ key: node.key, value: node.value });
-            walk(node.right);
-        };
-        walk(this.root);
-        return result;
-    }
+    return out;
+  }
 }
 
 module.exports = BST;

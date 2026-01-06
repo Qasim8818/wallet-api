@@ -1,0 +1,20 @@
+{
+  "name": "wallet-api-solidity",
+  "version": "1.0.0",
+  "description": "ERC20 token contracts for wallet API",
+  "main": "index.js",
+  "scripts": {
+    "test": "hardhat test",
+    "compile": "hardhat compile",
+    "deploy:origin": "hardhat run scripts/deployOrigin.js --network origin",
+    "deploy:destination": "hardhat run scripts/deployDestination.js --network destination"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.0.0"
+  }
+}

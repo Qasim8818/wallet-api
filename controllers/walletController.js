@@ -1,195 +1,155 @@
-// controllers/walletController.js - SIMPLIFIED VERSION
-const Wallet = require('../models/WalletModel');  // Import from separate file
-const { successResponse, errorResponse } = require('../utils/helpers');
-const cache = require('../utils/cache');
-const lruCache = require('../utils/lruCache');
-const logger = require('../utils/logger');
-const { authenticateToken } = require('../middleware/auth');
+const User = require('../models/user');
+const Transaction = require('../models/transaction');
+const { sendResponse, sendError } = require('../utils/helpers');
+const { getCache, setCache, promoteHotKey, getTopHotKeys } = require('../utils/cache');
+const BST = require('../utils/bst');
+const MinHeap = require('../utils/minHeap');
+const { v4: uuidv4 } = require('uuid');
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+const { Graph } = require('../utils/graph');
 
-const createWallet = async (req, res) => {
-    try {
-        const { owner, balance = 0 } = req.body;
-        const userId = req.user ? req.user.userId : 'test-user'; // From JWT token or default for tests
-
-        if (!owner) {
-            return errorResponse(res, new Error('Owner is required'), 400);
-        }
-
-        const wallet = await Wallet.create({ owner, balance, userId });
-        await cache.set(`wallet:${wallet._id}`, wallet, 300);
-        lruCache.set(`wallet:${wallet._id}`, wallet);
-
-        return successResponse(res, wallet, 'Wallet created', 201);
-    } catch (error) {
-        logger.error('Error creating wallet:', error);
-        return errorResponse(res, error, 500);
-    }
+// AUTH
+exports.register = async (req, res) => {
+  const { userId, initialBalance = 0 } = req.body;
+  if (!userId) return sendError(res, 'userId required', 'INVALID_PARAMS', 400);
+  try {
+    const existing = await User.findOne({ userId });
+    if (existing) return sendError(res, 'User exists', 'USER_EXISTS', 400);
+    const user = await User.create({ userId, balance: initialBalance });
+    const token = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    return sendResponse(res, 'Registered', { userId: user.userId, token });
+  } catch (err) { return sendError(res, err.message, 'SERVER_ERROR', 500); }
 };
 
-const getWallet = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // Check LRU cache first
-        let wallet = lruCache.get(`wallet:${id}`);
-
-        if (!wallet) {
-            // Check Redis cache
-            wallet = await cache.get(`wallet:${id}`);
-            if (wallet) {
-                lruCache.set(`wallet:${id}`, wallet);
-            } else {
-                // Check database
-                wallet = await Wallet.findById(id);
-                if (!wallet) {
-                    return errorResponse(res, new Error('Wallet not found'), 404);
-                }
-                await cache.set(`wallet:${id}`, wallet, 300);
-                lruCache.set(`wallet:${id}`, wallet);
-            }
-        }
-
-        return successResponse(res, wallet);
-    } catch (error) {
-        logger.error('Error getting wallet:', error);
-        return errorResponse(res, error, 500);
-    }
+exports.login = async (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return sendError(res, 'userId required', 'INVALID_PARAMS', 400);
+  const user = await User.findOne({ userId });
+  if (!user) return sendError(res, 'User not found', 'USER_NOT_FOUND', 404);
+  const token = jwt.sign({ userId: user.userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  return sendResponse(res, 'Logged in', { userId: user.userId, token });
 };
 
-const deposit = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { amount } = req.body;
-
-        if (!amount || amount <= 0) {
-            return errorResponse(res, new Error('Invalid deposit amount'), 400);
-        }
-
-        if (process.env.NODE_ENV === 'test') {
-            // Skip session for tests
-            const wallet = await Wallet.findById(id);
-            if (!wallet) {
-                return errorResponse(res, new Error('Wallet not found'), 404);
-            }
-
-            wallet.balance += amount;
-            await wallet.save();
-
-            // Update caches
-            await cache.set(`wallet:${id}`, wallet, 300);
-            lruCache.set(`wallet:${id}`, wallet);
-
-            return successResponse(res, wallet, 'Deposit successful');
-        }
-
-        const session = await Wallet.startSession();
-        session.startTransaction();
-
-        try {
-            const wallet = await Wallet.findOne({ _id: id }).session(session);
-            if (!wallet) {
-                await session.abortTransaction();
-                return errorResponse(res, new Error('Wallet not found'), 404);
-            }
-
-            wallet.balance += amount;
-            await wallet.save({ session });
-            await session.commitTransaction();
-
-            // Update caches
-            await cache.set(`wallet:${id}`, wallet, 300);
-            lruCache.set(`wallet:${id}`, wallet);
-
-            return successResponse(res, wallet, 'Deposit successful');
-        } catch (error) {
-            await session.abortTransaction();
-            throw error;
-        } finally {
-            session.endSession();
-        }
-    } catch (error) {
-        logger.error('Error depositing to wallet:', error);
-        return errorResponse(res, error, 500);
-    }
+// GET balance with cache & hot promotion
+exports.getBalance = async (req, res) => {
+  const userId = req.query.userId || req.user.userId;
+  if (!userId) return sendError(res, 'userId required', 'INVALID_PARAMS', 400);
+  try {
+    const cached = await getCache(`user:${userId}`);
+    if (cached) { await promoteHotKey(`user:${userId}`); return sendResponse(res, 'Balance (cache)', cached); }
+    const user = await User.findOne({ userId }, { balance: 1, currency: 1, _id: 0 });
+    if (!user) return sendError(res, 'User not found', 'USER_NOT_FOUND', 404);
+    const data = { balance: user.balance, currency: user.currency };
+    await setCache(`user:${userId}`, data);
+    await promoteHotKey(`user:${userId}`);
+    return sendResponse(res, 'Balance', data);
+  } catch (err) { return sendError(res, err.message, 'SERVER_ERROR', 500); }
 };
 
-const withdraw = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { amount } = req.body;
+// Transfer via MongoDB transaction + queue pattern (inline simple version)
+exports.transferFunds = async (req, res) => {
+  const { fromUserId, toUserId, amount } = req.body;
+  const value = parseFloat(amount);
+  if (!fromUserId || !toUserId || isNaN(value) || value <= 0) return sendError(res, 'Invalid params', 'INVALID_PARAMS', 400);
 
-        if (!amount || amount <= 0) {
-            return errorResponse(res, new Error('Invalid withdraw amount'), 400);
-        }
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const [fromUser, toUser] = await Promise.all([
+      User.findOne({ userId: fromUserId }).session(session),
+      User.findOne({ userId: toUserId }).session(session)
+    ]);
+    if (!fromUser || !toUser) throw new Error('User(s) not found');
+    if (fromUser.balance < value) throw new Error('Insufficient funds');
 
-        const session = await Wallet.startSession();
-        session.startTransaction();
+    const tx = await Transaction.create([{ txId: uuidv4(), fromUserId, toUserId, amount: value, status: 'PENDING' }], { session });
 
-        try {
-            const wallet = await Wallet.findOne({ _id: id }).session(session);
-            if (!wallet) {
-                await session.abortTransaction();
-                return errorResponse(res, new Error('Wallet not found'), 404);
-            }
+    fromUser.balance -= value;
+    toUser.balance += value;
 
-            if (wallet.balance < amount) {
-                await session.abortTransaction();
-                return errorResponse(res, new Error('Insufficient funds'), 400);
-            }
+    await Promise.all([fromUser.save({ session }), toUser.save({ session })]);
 
-            wallet.balance -= amount;
-            await wallet.save({ session });
-            await session.commitTransaction();
+    tx[0].status = 'COMPLETED';
+    await tx[0].save({ session });
 
-            // Update caches
-            await cache.set(`wallet:${id}`, wallet, 300);
-            lruCache.set(`wallet:${id}`, wallet);
+    await session.commitTransaction();
+    session.endSession();
 
-            return successResponse(res, wallet, 'Withdrawal successful');
-        } catch (error) {
-            await session.abortTransaction();
-            throw error;
-        } finally {
-            session.endSession();
-        }
-    } catch (error) {
-        logger.error('Error withdrawing from wallet:', error);
-        return errorResponse(res, error, 500);
-    }
+    // update caches
+    await setCache(`user:${fromUserId}`, { balance: fromUser.balance, currency: fromUser.currency });
+    await setCache(`user:${toUserId}`, { balance: toUser.balance, currency: toUser.currency });
+
+    return sendResponse(res, 'Transfer completed', { fromUserBalance: fromUser.balance, toUserBalance: toUser.balance });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    return sendError(res, err.message, 'TRANSFER_FAILED', 400);
+  }
 };
 
-const getBalance = async (req, res) => {
-    try {
-        const { id } = req.params;
+// Top balances using indexed query + BST / MinHeap fallback
+exports.topBalances = async (req, res) => {
+  try {
+    // Try cache first
+    const cached = await getCache('leaderboard:top100');
+    if (cached) return sendResponse(res, 'Top balances (cache)', cached);
 
-        let wallet = lruCache.get(`wallet:${id}`);
+    const users = await User.find({}, { userId:1, balance:1, _id:0 }).sort({ balance: -1 }).limit(100);
+    // convert to simple array
+    const output = users.map(u => ({ userId: u.userId, balance: u.balance }));
 
-        if (!wallet) {
-            wallet = await cache.get(`wallet:${id}`);
-            if (wallet) {
-                lruCache.set(`wallet:${id}`, wallet);
-            } else {
-                wallet = await Wallet.findById(id).select('balance');
-                if (!wallet) {
-                    return errorResponse(res, new Error('Wallet not found'), 404);
-                }
-                await cache.set(`wallet:${id}`, wallet, 300);
-                lruCache.set(`wallet:${id}`, wallet);
-            }
-        }
-
-        return successResponse(res, { balance: wallet.balance });
-    } catch (error) {
-        logger.error('Error getting balance:', error);
-        return errorResponse(res, error, 500);
-    }
+    // populate cache (hot)
+    await setCache('leaderboard:top100', output, 30); // short TTL
+    return sendResponse(res, 'Top balances', output);
+  } catch (err) { return sendError(res, err.message, 'SERVER_ERROR', 500); }
 };
 
-module.exports = {
-    createWallet,
-    getWallet,
-    deposit,
-    withdraw,
-    getBalance,
-    
+// Leaderboard that uses Hot cache + BST for fast in-memory sort
+exports.leaderboardCached = async (req, res) => {
+  try {
+    // get top hot keys and fetch their cached values
+    const hotKeys = await getTopHotKeys(200);
+    const result = [];
+    for (const key of hotKeys) {
+      const val = await getCache(key);
+      if (val) result.push({ userId: key.replace('user:', ''), balance: val.balance });
+    }
+    // if not enough, fallback to DB topBalances
+    if (result.length < 100) {
+      const dbTop = await User.find({}, { userId:1, balance:1, _id:0 }).sort({ balance: -1 }).limit(100 - result.length);
+      result.push(...dbTop.map(u => ({ userId: u.userId, balance: u.balance })));
+    }
+    // use min-heap to keep top 100
+    const heap = new MinHeap();
+    for (const u of result) {
+      if (heap.size() < 100) heap.push(u);
+      else if (u.balance > heap.peek().balance) { heap.pop(); heap.push(u); }
+    }
+    const out = [];
+    while (heap.size()) out.push(heap.pop());
+    // out is ascending; reverse for descending
+    return sendResponse(res, 'Leaderboard', out.reverse());
+  } catch (err) { return sendError(res, err.message, 'SERVER_ERROR', 500); }
+};
+
+// Graph: demo endpoints could use these internally; keep functions exported for reuse
+exports.buildUserGraph = async (transactionsLimit = 10000) => {
+  // build graph from recent transactions (for analysis)
+  const txs = await Transaction.find({}).sort({ createdAt: -1 }).limit(transactionsLimit);
+  const g = new Graph();
+  txs.forEach(t => g.addEdge(t.fromUserId, t.toUserId, t.amount));
+  return g;
+};
+
+// Example Dijkstra wrapper
+exports.findShortestPaymentPath = async (start, dest) => {
+  const g = await exports.buildUserGraph(50000);
+  const { dist, prev } = g.dijkstra(start);
+  const distance = dist.get(dest);
+  if (distance === Infinity) return null;
+  // reconstruct path
+  const path = []; let cur = dest;
+  while (cur) { path.push(cur); cur = prev.get(cur); }
+  return { distance, path: path.reverse() };
 };
