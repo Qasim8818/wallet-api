@@ -1,79 +1,270 @@
-# Wallet API - Enterprise Ready
+# 🚀 BSC Phantom Wallet
 
-High-performance wallet API with MongoDB sharding, Redis cluster, BST, Min-Heap, Graph algorithms (BFS/DFS/Dijkstra), JWT auth, and Docker support.
+A professional, production-ready cryptocurrency wallet for BNB Smart Chain with a beautiful Phantom-inspired UI.
 
-## Features
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![React](https://img.shields.io/badge/React-18-61DAFB)
+![Node](https://img.shields.io/badge/Node-20+-339933)
 
-- **MongoDB Sharding**: Scalable database with connection pooling
-- **Redis Cluster**: Hot-cache with sharding support
-- **Data Structures**: BST, Min-Heap for efficient operations
-- **Graph Algorithms**: BFS, DFS, Dijkstra for transaction analysis
-- **JWT Authentication**: Secure token-based auth
-- **Rate Limiting**: Express rate limiter
-- **Docker Support**: Complete containerization
-- **Batch Operations**: Efficient bulk processing
-- **Logging**: Winston-based structured logging
+## ✨ What Is This?
 
-## Quick Start
+A complete, secure, non-custodial crypto wallet for BNB Smart Chain featuring:
+
+- **Modern UI**: Beautiful Phantom-style interface with smooth animations
+- **Secure**: Encrypted private keys with password protection
+- **Full-Featured**: Create/import wallets, send/receive BNB, manage tokens
+- **Multi-Wallet**: Manage multiple accounts in one app
+- **Real-time**: Auto-updating balances and transaction history
+- **Production-Ready**: Built with best practices and security in mind
+
+## 🎯 Quick Start
+
+### Prerequisites
+- Node.js 18+
+- Supabase account (free tier works!)
+- Modern web browser
+
+### 1. Clone & Install
 
 ```bash
-# Install dependencies
-npm install
-
-# Start with Docker
-docker-compose up
-
-# Or start locally (ensure MongoDB and Redis are running)
-npm start
-
-# Seed database with test data
-npm run seed
+# Install all dependencies (backend + frontend)
+npm run setup
 ```
 
-## API Endpoints
+### 2. Configure Supabase
 
-### Authentication
-- `POST /wallet/auth/register` - Register new user
-- `POST /wallet/auth/login` - Login user
-
-### Wallet Operations
-- `GET /wallet/balance` - Get user balance (cached)
-- `POST /wallet/funds/transfer` - Transfer funds between users
-- `GET /wallet/top-balances` - Get top 100 balances
-- `GET /wallet/leaderboard` - Get cached leaderboard
-
-## Environment Variables
+1. Database is already set up (migration was applied)
+2. Get your credentials from Supabase Dashboard → Settings → API
+3. Create `client/.env`:
 
 ```env
-PORT=3000
-MONGO_URI=mongodb://mongo:27017/walletDB
-REDIS_NODES=127.0.0.1:7000,127.0.0.1:7001
-JWT_SECRET=your_secret_here
-MONGO_POOL_MIN=10
-MONGO_POOL_MAX=200
-BATCH_SIZE=10000
-TOTAL_USERS=1000000
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key_here
 ```
 
-## Architecture
+### 3. Run
 
-- **Controllers**: Business logic with graph algorithms
-- **Models**: MongoDB schemas with optimized indexes
-- **Utils**: BST, MinHeap, Graph, Cache, Sharding helpers
-- **Middleware**: Auth, Rate limiting, Error handling
+```bash
+# Start both backend and frontend
+npm run dev:all
+```
 
-## Performance Features
+Open http://localhost:3001 - Your wallet is ready!
 
-- Connection pooling for MongoDB
-- Redis cluster with hot-key promotion
-- Indexed queries for leaderboards
-- Batch processing for large datasets
-- In-memory data structures for fast operations
+## 📱 Features
 
-## Production Notes
+### Wallet Management
+- ✅ Create new wallets with 12-word seed phrase
+- ✅ Import existing wallets (seed phrase or private key)
+- ✅ Manage multiple wallets
+- ✅ Switch between wallets instantly
+- ✅ Password-protected operations
 
-1. Configure MongoDB sharded cluster
-2. Set up Redis cluster nodes
-3. Use Bull queue for async transfers
-4. Add monitoring (Prometheus/Grafana)
-5. Load test with k6/artillery
+### Transactions
+- ✅ Send BNB to any address
+- ✅ Receive BNB (one-click address copy)
+- ✅ Real-time transaction tracking
+- ✅ Complete transaction history
+- ✅ Click to view on BSCScan
+
+### Network Support
+- ✅ BSC Mainnet (production)
+- ✅ BSC Testnet (testing with free tBNB)
+- ✅ Easy network switching
+- ✅ Automatic gas estimation
+
+### Security
+- ✅ Private keys encrypted with your password
+- ✅ Never stored in plain text
+- ✅ 12-word seed phrase backup
+- ✅ Supabase RLS (Row Level Security)
+- ✅ Password required for all transactions
+
+### User Experience
+- ✅ Beautiful dark theme UI
+- ✅ Smooth animations
+- ✅ Responsive design (mobile-friendly)
+- ✅ Real-time balance updates
+- ✅ Token support (BEP-20)
+- ✅ Clean, intuitive interface
+
+## 🏗️ Architecture
+
+```
+BSC Phantom Wallet
+├── Frontend (React + Vite)
+│   ├── Modern UI with TailwindCSS
+│   ├── Zustand for state management
+│   ├── Ethers.js for blockchain interaction
+│   └── React Router for navigation
+│
+├── Backend (Express + Node.js)
+│   ├── API endpoints (optional)
+│   └── Support for existing features
+│
+└── Database (Supabase)
+    ├── PostgreSQL with RLS
+    ├── User authentication
+    ├── Wallet data storage
+    └── Transaction history
+```
+
+## 📖 Documentation
+
+- **Quick Start**: `START_HERE.md` - Get running in 5 minutes
+- **Detailed Setup**: `BSC_WALLET_SETUP.md` - Complete configuration guide
+- **Frontend Details**: `client/README.md` - React app documentation
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **React 18**: Modern React with hooks
+- **Vite**: Lightning-fast build tool
+- **TailwindCSS**: Utility-first styling
+- **Ethers.js**: Blockchain interactions
+- **Zustand**: State management
+- **React Router**: Navigation
+- **React Hot Toast**: Notifications
+
+### Backend & Database
+- **Supabase**: PostgreSQL database with auth
+- **Express**: REST API server
+- **Node.js**: Runtime environment
+
+### Blockchain
+- **BNB Smart Chain**: Layer 1 blockchain
+- **BSC Mainnet**: Production network
+- **BSC Testnet**: Testing network
+
+## 🎨 Design
+
+The wallet features a modern, clean design inspired by Phantom wallet:
+
+- **Color Scheme**: Teal/turquoise primary (#00D4AA), blue accent (#3B82F6)
+- **Theme**: Dark mode with smooth gradients
+- **Typography**: Clean, readable fonts
+- **Animations**: Smooth transitions and micro-interactions
+- **Layout**: Spacious, intuitive interface
+
+## 🔐 Security Best Practices
+
+### What We Protect
+- ✅ Private keys encrypted with AES-256
+- ✅ Password-protected wallet operations
+- ✅ Secure seed phrase generation
+- ✅ Row-level security on all data
+- ✅ No plain text storage
+
+### What You Must Do
+- ⚠️ **Save your seed phrase** - Write it down on paper
+- ⚠️ **Never share** your seed phrase or private key
+- ⚠️ **Use strong passwords** - Minimum 8 characters
+- ⚠️ **Test on testnet first** - Before using mainnet
+- ⚠️ **Verify addresses** - Always double-check before sending
+
+## 📊 Available Commands
+
+```bash
+# Setup
+npm run setup              # Install all dependencies
+
+# Development
+npm run dev:all            # Run backend + frontend together
+npm run dev                # Backend only
+npm run client             # Frontend only
+
+# Production
+npm run build              # Build frontend for production
+npm start                  # Start production server
+
+# Frontend specific
+npm run client:install     # Install frontend dependencies
+npm run client:build       # Build frontend
+```
+
+## 🧪 Testing
+
+### Testnet Testing (Recommended)
+
+1. Switch to BSC Testnet in the app
+2. Get free tBNB from faucet: https://testnet.binance.org/faucet-smart
+3. Test all features safely
+4. View transactions on: https://testnet.bscscan.com
+
+### Local Testing
+
+```bash
+# Start development servers
+npm run dev:all
+
+# Open browser
+open http://localhost:3001
+```
+
+## 🌐 Network Information
+
+### BSC Mainnet
+- **Chain ID**: 56
+- **Symbol**: BNB
+- **RPC**: https://bsc-dataseed1.binance.org
+- **Explorer**: https://bscscan.com
+
+### BSC Testnet
+- **Chain ID**: 97
+- **Symbol**: tBNB
+- **RPC**: https://data-seed-prebsc-1-s1.binance.org:8545
+- **Explorer**: https://testnet.bscscan.com
+- **Faucet**: https://testnet.binance.org/faucet-smart
+
+## 🚀 Deployment
+
+### Frontend (Vercel/Netlify)
+
+```bash
+# Build frontend
+npm run build
+
+# Deploy dist/ folder
+# Set environment variables:
+# - VITE_SUPABASE_URL
+# - VITE_SUPABASE_ANON_KEY
+```
+
+### Backend (Optional)
+
+```bash
+# Deploy to your preferred hosting
+# Set environment variables from .env.example
+```
+
+## 🤝 Contributing
+
+Contributions welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📝 License
+
+MIT License - feel free to use for your own projects!
+
+## 🆘 Support
+
+- **Setup Issues**: Check `BSC_WALLET_SETUP.md`
+- **Questions**: See documentation files
+- **BSC Help**: https://docs.bnbchain.org
+- **Supabase Help**: https://supabase.com/docs
+
+## 🙏 Acknowledgments
+
+- Inspired by Phantom Wallet's beautiful UI
+- Built with open-source technologies
+- Powered by BNB Smart Chain
+
+---
+
+**Ready to start?** Run `npm run setup && npm run dev:all` and open http://localhost:3001
