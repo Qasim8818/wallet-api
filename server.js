@@ -38,6 +38,14 @@ app.use('/api/v1/tempo', tempoRouter);
 const contractRouter = require('./routes/contracts');
 app.use('/api/v1/contracts', contractRouter);
 
+// Register NFT routes
+const nftRouter = require('./routes/nft');
+app.use('/api/v1/nft', nftRouter);
+
+// Register NFT routes
+const nftRouter = require('./routes/nft');
+app.use('/api/v1/nft', nftRouter);
+
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
